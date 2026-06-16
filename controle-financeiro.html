@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle Financeiro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #1a1a1a; min-height: 100vh; }
+  .header { background: #1a1a1a; color: #fff; padding: 1rem 1.5rem; }
+  .header h1 { font-size: 18px; font-weight: 500; }
+  .header p { font-size: 13px; color: #999; margin-top: 2px; }
+  .container { max-width: 680px; margin: 0 auto; padding: 1.5rem 1rem; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .tab { font-size: 13px; padding: 7px 14px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer; background: #fff; color: #666; }
+  .tab.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e8e8e8; padding: 1.25rem; margin-bottom: 1rem; }
+  .section-title { font-size: 14px; font-weight: 500; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .fin-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .fin-row input[type="text"] { flex: 2; min-width: 120px; height: 38px; border: 1px solid #ddd; border-radius: 8px; padding: 0 10px; font-size: 14px; background: #fafafa; color: #1a1a1a; }
+  .prefix-wrap { display: flex; align-items: center; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background: #fafafa; flex: 1; min-width: 100px; height: 38px; }
+  .prefix-wrap span { padding: 0 10px; font-size: 13px; color: #888; background: #f0f0ec; border-right: 1px solid #ddd; height: 100%; display: flex; align-items: center; white-space: nowrap; }
+  .prefix-wrap input { border: none; background: transparent; padding: 0 10px; font-size: 14px; color: #1a1a1a; height: 100%; outline: none; width: 100%; }
+  select { height: 38px; border: 1px solid #ddd; border-radius: 8px; padding: 0 10px; font-size: 13px; background: #fafafa; color: #1a1a1a; }
+  .btn-remove { background: none; border: none; cursor: pointer; color: #bbb; font-size: 20px; line-height: 1; padding: 0 4px; }
+  .btn-remove:hover { color: #e24b4a; }
+  .add-btn { width: 100%; padding: 8px; border: 1px dashed #ccc; border-radius: 8px; background: none; font-size: 13px; color: #888; cursor: pointer; margin-top: 4px; }
+  .add-btn:hover { background: #f5f5f0; }
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .metric { background: #f5f5f0; border-radius: 8px; padding: 12px 14px; }
+  .metric-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .metric-value { font-size: 20px; font-weight: 500; }
+  .pos { color: #0F6E56; }
+  .neg { color: #993C1D; }
+  .warn { color: #854F0B; }
+  .proj-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #f0f0ec; font-size: 13px; flex-wrap: wrap; gap: 4px; }
+  .proj-row:last-child { border-bottom: none; }
+  .proj-month { color: #888; font-weight: 500; min-width: 60px; }
+  .legend { display: flex; gap: 14px; margin-bottom: 10px; font-size: 12px; color: #888; flex-wrap: wrap; }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+  .divider { border: none; border-top: 1px solid #f0f0ec; margin: 1.25rem 0; }
+  .tip { font-size: 12px; color: #888; margin-bottom: 12px; line-height: 1.5; }
+  @media (max-width: 480px) {
+    .fin-row { gap: 6px; }
+    .metric-value { font-size: 17px; }
+    .proj-row { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Controle Financeiro</h1>
+  <p>Preencha as abas e veja sua projeção</p>
+</div>
+
+<div class="container">
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('entrada', this)">Renda</button>
+  <button class="tab" onclick="switchTab('fixos', this)">Fixos</button>
+  <button class="tab" onclick="switchTab('extras', this)">Extras</button>
+  <button class="tab" onclick="switchTab('cartao', this)">Cartão</button>
+  <button class="tab" onclick="switchTab('resultado', this)">Resultado</button>
+</div>
+
+<div id="tab-entrada" class="tab-content active">
+  <div class="card">
+    <div class="section-title">💰 Renda mensal</div>
+    <p class="tip">Adicione todas as fontes de renda que você recebe por mês.</p>
+    <div id="rendas-list"></div>
+    <button class="add-btn" onclick="addItem(rendas, renderRendas)">+ adicionar fonte de renda</button>
+  </div>
+</div>
+
+<div id="tab-fixos" class="tab-content">
+  <div class="card">
+    <div class="section-title">📋 Gastos fixos mensais</div>
+    <p class="tip">Contas que você paga todo mês: aluguel, energia, internet, plano de saúde, etc.</p>
+    <div id="fixos-list"></div>
+    <button class="add-btn" onclick="addItem(fixos, renderFixos)">+ adicionar gasto fixo</button>
+  </div>
+</div>
+
+<div id="tab-extras" class="tab-content">
+  <div class="card">
+    <div class="section-title">🛒 Gastos extras do mês</div>
+    <p class="tip">Gastos que aconteceram esse mês mas não se repetem sempre.</p>
+    <div id="extras-list"></div>
+    <button class="add-btn" onclick="addItem(extras, renderExtras)">+ adicionar gasto extra</button>
+  </div>
+</div>
+
+<div id="tab-cartao" class="tab-content">
+  <div class="card">
+    <div class="section-title">💳 Contas futuras no cartão</div>
+    <p class="tip">Parcelas ou cobranças futuras. Informe o valor mensal e por quantos meses ainda vai pagar.</p>
+    <div id="cartao-list"></div>
+    <button class="add-btn" onclick="addCartaoItem()">+ adicionar conta futura</button>
+  </div>
+</div>
+
+<div id="tab-resultado" class="tab-content">
+  <div class="card">
+    <div class="section-title">📊 Resumo do mês atual</div>
+    <div class="metric-grid" id="metrics"></div>
+  </div>
+  <div class="card">
+    <div class="section-title">📈 Projeção — próximos 6 meses</div>
+    <div class="legend">
+      <span><span class="legend-dot" style="background:#1D9E75"></span>Renda</span>
+      <span><span class="legend-dot" style="background:#D85A30"></span>Gastos</span>
+      <span><span class="legend-dot" style="background:#378ADD"></span>Acumulado</span>
+    </div>
+    <div style="position:relative;width:100%;height:220px;margin-bottom:1.5rem;">
+      <canvas id="projChart" role="img" aria-label="Gráfico de projeção financeira dos próximos 6 meses"></canvas>
+    </div>
+    <div class="divider"></div>
+    <div id="proj-table"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+let rendas = [{ desc: 'Salário', val: 0 }];
+let fixos = [{ desc: 'Aluguel', val: 0 }, { desc: 'Energia', val: 0 }];
+let extras = [{ desc: '', val: 0 }];
+let cartoes = [{ desc: '', val: 0, meses: 3 }];
+let projChartInst = null;
+
+function fmt(v) {
+  return 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function switchTab(t, el) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + t).classList.add('active');
+  if (t === 'resultado') renderResultado();
+}
+
+function makeRow(arr, i, placeholder, rerender) {
+  const row = document.createElement('div');
+  row.className = 'fin-row';
+
+  const inp1 = document.createElement('input');
+  inp1.type = 'text';
+  inp1.placeholder = placeholder;
+  inp1.value = arr[i].desc;
+  inp1.oninput = e => { arr[i].desc = e.target.value; };
+
+  const wrap = document.createElement('div');
+  wrap.className = 'prefix-wrap';
+  const pfx = document.createElement('span');
+  pfx.textContent = 'R$';
+  const inp2 = document.createElement('input');
+  inp2.type = 'number';
+  inp2.min = '0';
+  inp2.step = '0.01';
+  inp2.placeholder = '0,00';
+  inp2.value = arr[i].val || '';
+  inp2.oninput = e => { arr[i].val = parseFloat(e.target.value) || 0; };
+  wrap.appendChild(pfx);
+  wrap.appendChild(inp2);
+
+  const btn = document.createElement('button');
+  btn.className = 'btn-remove';
+  btn.innerHTML = '×';
+  btn.onclick = () => { arr.splice(i, 1); rerender(); };
+
+  row.appendChild(inp1);
+  row.appendChild(wrap);
+  row.appendChild(btn);
+  return row;
+}
+
+function makeCartaoRow(i) {
+  const row = document.createElement('div');
+  row.className = 'fin-row';
+
+  const inp1 = document.createElement('input');
+  inp1.type = 'text';
+  inp1.placeholder = 'Ex: TV parcelada, viagem';
+  inp1.value = cartoes[i].desc;
+  inp1.style.flex = '2';
+  inp1.oninput = e => { cartoes[i].desc = e.target.value; };
+
+  const wrap = document.createElement('div');
+  wrap.className = 'prefix-wrap';
+  wrap.style.flex = '1';
+  const pfx = document.createElement('span');
+  pfx.textContent = 'R$/mês';
+  const inp2 = document.createElement('input');
+  inp2.type = 'number';
+  inp2.min = '0';
+  inp2.step = '0.01';
+  inp2.placeholder = '0,00';
+  inp2.value = cartoes[i].val || '';
+  inp2.oninput = e => { cartoes[i].val = parseFloat(e.target.value) || 0; };
+  wrap.appendChild(pfx);
+  wrap.appendChild(inp2);
+
+  const sel = document.createElement('select');
+  for (let m = 1; m <= 24; m++) {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.text = m + (m === 1 ? ' mês' : ' meses');
+    if (cartoes[i].meses === m) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  sel.onchange = e => { cartoes[i].meses = parseInt(e.target.value); };
+
+  const btn = document.createElement('button');
+  btn.className = 'btn-remove';
+  btn.innerHTML = '×';
+  btn.onclick = () => { cartoes.splice(i, 1); renderCartao(); };
+
+  row.appendChild(inp1);
+  row.appendChild(wrap);
+  row.appendChild(sel);
+  row.appendChild(btn);
+  return row;
+}
+
+function addItem(arr, rerender) { arr.push({ desc: '', val: 0 }); rerender(); }
+function addCartaoItem() { cartoes.push({ desc: '', val: 0, meses: 3 }); renderCartao(); }
+
+function renderRendas() {
+  const el = document.getElementById('rendas-list'); el.innerHTML = '';
+  rendas.forEach((_, i) => el.appendChild(makeRow(rendas, i, 'Fonte de renda', renderRendas)));
+}
+function renderFixos() {
+  const el = document.getElementById('fixos-list'); el.innerHTML = '';
+  fixos.forEach((_, i) => el.appendChild(makeRow(fixos, i, 'Descrição do gasto', renderFixos)));
+}
+function renderExtras() {
+  const el = document.getElementById('extras-list'); el.innerHTML = '';
+  extras.forEach((_, i) => el.appendChild(makeRow(extras, i, 'Descrição', renderExtras)));
+}
+function renderCartao() {
+  const el = document.getElementById('cartao-list'); el.innerHTML = '';
+  cartoes.forEach((_, i) => el.appendChild(makeCartaoRow(i)));
+}
+
+function renderResultado() {
+  const totalRenda = rendas.reduce((s, r) => s + r.val, 0);
+  const totalFixos = fixos.reduce((s, r) => s + r.val, 0);
+  const totalExtras = extras.reduce((s, r) => s + r.val, 0);
+  const totalCartaoMes = cartoes.reduce((s, r) => s + r.val, 0);
+  const totalGasto = totalFixos + totalExtras + totalCartaoMes;
+  const saldoMes = totalRenda - totalGasto;
+  const pct = totalRenda > 0 ? Math.round((totalGasto / totalRenda) * 100) : 0;
+  const pctClass = pct > 80 ? 'neg' : pct > 60 ? 'warn' : 'pos';
+
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Renda total</div><div class="metric-value pos">${fmt(totalRenda)}</div></div>
+    <div class="metric"><div class="metric-label">Total gastos</div><div class="metric-value neg">${fmt(totalGasto)}</div></div>
+    <div class="metric"><div class="metric-label">Saldo do mês</div><div class="metric-value ${saldoMes >= 0 ? 'pos' : 'neg'}">${fmt(saldoMes)}</div></div>
+    <div class="metric"><div class="metric-label">% comprometido</div><div class="metric-value ${pctClass}">${pct}%</div></div>
+  `;
+
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const now = new Date();
+  const labels = [], acums = [], rendas6 = [], gastos6 = [];
+  let acum = 0;
+
+  for (let m = 0; m < 6; m++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
+    labels.push(meses[d.getMonth()] + '/' + String(d.getFullYear()).slice(2));
+    const cartaoMes = cartoes.reduce((s, r) => s + (m < r.meses ? r.val : 0), 0);
+    const gastoMes = totalFixos + (m === 0 ? totalExtras : 0) + cartaoMes;
+    const saldo = totalRenda - gastoMes;
+    acum += saldo;
+    acums.push(Math.round(acum));
+    rendas6.push(Math.round(totalRenda));
+    gastos6.push(Math.round(gastoMes));
+  }
+
+  if (projChartInst) projChartInst.destroy();
+  projChartInst = new Chart(document.getElementById('projChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Renda', data: rendas6, backgroundColor: '#1D9E75', borderRadius: 4 },
+        { label: 'Gastos', data: gastos6, backgroundColor: '#D85A30', borderRadius: 4 },
+        { type: 'line', label: 'Acumulado', data: acums, borderColor: '#378ADD', backgroundColor: 'rgba(55,138,221,0.08)', tension: 0.3, fill: true, pointRadius: 4, yAxisID: 'y2' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => 'R$' + v.toLocaleString('pt-BR') }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        y2: { position: 'right', ticks: { callback: v => 'R$' + v.toLocaleString('pt-BR') }, grid: { display: false } },
+        x: { ticks: { autoSkip: false } }
+      }
+    }
+  });
+
+  let tableHtml = '';
+  acums.forEach((a, i) => {
+    tableHtml += `<div class="proj-row">
+      <span class="proj-month">${labels[i]}</span>
+      <span style="color:#0F6E56">Renda: ${fmt(rendas6[i])}</span>
+      <span style="color:#993C1D">Gastos: ${fmt(gastos6[i])}</span>
+      <span style="font-weight:500;color:${a >= 0 ? '#0F6E56' : '#993C1D'}">Acum: ${fmt(a)}</span>
+    </div>`;
+  });
+  document.getElementById('proj-table').innerHTML = tableHtml;
+}
+
+renderRendas();
+renderFixos();
+renderExtras();
+renderCartao();
+</script>
+</body>
+</html>
